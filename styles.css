@@ -165,6 +165,21 @@ button {
 .icon-btn:active {
   transform: translateY(2px);
 }
+/* 소리가 아직 잠겨 있음: 화면을 한 번 눌러 달라는 뜻으로 깜빡인다 */
+.icon-btn.needs-tap {
+  animation: tap-me 1.2s ease-in-out infinite;
+}
+@keyframes tap-me {
+  50% {
+    transform: scale(1.18);
+    box-shadow: 0 0 0 8px rgba(255, 213, 79, 0.6);
+  }
+}
+.status-action {
+  flex-basis: 100%;
+  margin-top: 0;
+  font-size: 16px;
+}
 
 /* ------------------------------------------------------------- 놀이 선택 막대 */
 .modebar {
@@ -246,6 +261,11 @@ body.sim.playing .sim-help {
 
 body:not(.playing) #hud {
   display: none;
+}
+/* 준비 중에는 놀이 버튼이 아직 아무 일도 하지 않으므로 숨긴다 */
+body.loading .modebar,
+body.loading #btn-home {
+  visibility: hidden;
 }
 
 /* ------------------------------------------------------------- 시작 화면 */
@@ -358,6 +378,8 @@ body:not(.playing) #hud {
   top: 50%;
   transform: translate(-50%, -50%);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 16px;
   padding: 20px 30px;

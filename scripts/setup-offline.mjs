@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 // 학교·기관 네트워크처럼 프록시를 거쳐야 하면, Node 의 fetch 가 프록시를 쓰도록 다시 실행한다 (Node 22.21+/24+)
 const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.npm_config_https_proxy || process.env.npm_config_proxy;
 if (proxy && !process.env.NODE_USE_ENV_PROXY) {
-  const r = spawnSync(process.execPath, process.argv.slice(1), {
+  const r = spawnSync(process.execPath, [...process.execArgv, ...process.argv.slice(1)], {
     stdio: 'inherit',
     env: { ...process.env, NODE_USE_ENV_PROXY: '1', HTTPS_PROXY: proxy },
   });

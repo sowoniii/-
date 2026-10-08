@@ -69,6 +69,7 @@ export class App {
     this._starting = false;
     this._pendingMode = null;
     this._audioStream = null;
+    this._simFallback = false;
     this.ui = new UI(this, MODES);
     this._resize();
     window.addEventListener('resize', () => this._resize());
@@ -100,7 +101,8 @@ export class App {
   async start({ sim = false, modeId = null } = {}) {
     if (this.started) {
       // 카메라로 놀다가 '마우스로 연습하기'를 고르거나 그 반대면, 깨끗하게 다시 시작한다.
-      if (!!sim !== this.isSim) {
+      // (카메라가 안 돼서 연습 모드로 온 경우에는 카드를 눌러도 연습 모드 안에서 놀이만 바꾼다)
+      if (!!sim !== this.isSim && !(this._simFallback && !sim)) {
         this._relaunch({ sim, modeId: modeId || this.modeDef?.id });
         return;
       }
@@ -115,6 +117,7 @@ export class App {
     }
     this._starting = true;
     this._pendingMode = null;
+    document.body.classList.add('loading');
     this.sound.unlock();
     this.ui.hideError();
     this.ui.showStart(false);
@@ -123,7 +126,9 @@ export class App {
     if (sim) {
       this._startSim();
     } else {
-      this.ui.showStatus('카메라를 켜고 있어요… 📷');
+      // 카메라 허락 창이나 모델 내려받기가 끝나지 않을 때를 위한 탈출구
+      const escape = { label: '기다리기 힘들면: 마우스로 연습하기 🖱️', onClick: () => this._relaunch({ sim: true, modeId: this._pendingMode || def.id }) };
+      this.ui.showStatus('카메라를 켜고 있어요… 📷', escape);
       try {
         const { audioStream } = await openCamera(this.video, { audio: true });
         this.source = this.video;
@@ -138,10 +143,11 @@ export class App {
         }
       } catch (e) {
         this._starting = false;
+        document.body.classList.remove('loading');
         this._cameraError(e, this._pendingMode || def.id);
         return;
       }
-      this.ui.showStatus('손을 알아보는 준비를 하고 있어요… ✋');
+      this.ui.showStatus('손을 알아보는 준비를 하고 있어요… ✋', escape);
       try {
         this.tracker = new Tracker(this.viewport, config);
         await this.tracker.initHands();
@@ -149,6 +155,7 @@ export class App {
       } catch (e) {
         console.error(e);
         this._starting = false;
+        document.body.classList.remove('loading');
         const id = this._pendingMode || def.id;
         this.ui.showError({
           title: '손 인식 준비에 실패했어요 😢',
@@ -163,6 +170,7 @@ export class App {
       this.ui.showStatus(null);
     }
     this._starting = false;
+    document.body.classList.remove('loading');
     this.started = true;
     this.switchMode(this._pendingMode || def.id);
     this._pendingMode = null;
@@ -214,6 +222,7 @@ export class App {
   }
 
   _fallbackToSim(modeId) {
+    this._simFallback = true;
     this.tracker = null;
     this._stopCamera();
     this._startSim();

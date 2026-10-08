@@ -121,6 +121,8 @@ export class BlowDetector {
   }
 
   get state() {
-    return { enabled: this.enabled, level: this.level, blowing: this.blowing, strength: this.strength, candidate: this.candidate, flatness: this.flatness };
+    // 소리가 잠겨 있는 동안(화면을 아직 안 누름)은 마이크도 들을 수 없으므로 '없음'으로 알린다
+    const live = this.enabled && (!this.ctx?.state || this.ctx.state === 'running');
+    return { enabled: live, level: this.level, blowing: this.blowing, strength: this.strength, candidate: this.candidate, flatness: this.flatness };
   }
 }

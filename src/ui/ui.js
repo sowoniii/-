@@ -77,6 +77,7 @@ export class UI {
     this.$('btn-home').addEventListener('click', () => this.app.showMenu());
     const mute = this.$('btn-mute');
     const sync = () => (mute.textContent = this.app.sound.muted ? '🔇' : '🔊');
+    this._muteBtn = mute;
     sync();
     mute.addEventListener('click', () => {
       this.app.sound.setMuted(!this.app.sound.muted);
@@ -146,9 +147,18 @@ export class UI {
     this._toastTimer = setTimeout(() => this.toastEl.classList.remove('show'), ms);
   }
 
-  showStatus(text) {
+  /**
+   * 가운데 '준비 중' 표시. action 을 주면 아래에 작은 버튼(예: 기다리기 지루할 때 연습 모드로)을 단다.
+   * @param {string|null} text
+   * @param {{label:string, onClick:()=>void}} [action]
+   */
+  showStatus(text, action = null) {
     this.statusEl.hidden = !text;
     this.statusEl.querySelector('.status-text').textContent = text || '';
+    const btn = this.statusEl.querySelector('.status-action');
+    btn.hidden = !text || !action;
+    btn.textContent = action?.label || '';
+    btn.onclick = action ? () => action.onClick() : null;
   }
 
   /**
@@ -180,6 +190,10 @@ export class UI {
 
   /** 매 프레임: 손 안내, 손가락 머무르기 선택 */
   update(frame) {
+    // 자동 시작 등으로 소리가 아직 잠겨 있으면(브라우저는 한 번 눌러야 소리를 켜 준다) 소리 버튼이 깜빡이며 알려 준다
+    const ctx = this.app.sound.ctx;
+    this._muteBtn?.classList.toggle('needs-tap', !this.app.sound.muted && (!ctx || ctx.state !== 'running'));
+
     const live = frame.hands.filter((h) => !h.stale);
     // 얼굴이 보이면 놀이 자체 안내가 코치하므로 '손을 보여 주세요' 는 띄우지 않는다.
     const someone = live.length > 0 || frame.faces.length > 0;

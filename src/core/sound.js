@@ -22,7 +22,8 @@ export class Sound {
       const comp = this.ctx.createDynamicsCompressor();
       this.master.connect(comp).connect(this.ctx.destination);
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    // 'suspended'(아직 안 누름)뿐 아니라 사파리의 'interrupted'(전화·다른 앱) 상태에서도 다시 켠다
+    if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.ctx.resume().catch(() => {});
     return this.ctx;
   }
 
