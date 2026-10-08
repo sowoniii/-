@@ -250,3 +250,47 @@ test('BlowDetector: 앱이 잡음 효과음을 내는 동안은 입김으로 치
   for (let i = 0; i < 30; i++) d.update(1 / 60);
   assert.equal(d.blowing, true, '진짜 입김은 잡힌다');
 });
+
+test('HandTracker: 같은 손을 두 번 찾은 것은 하나로, 맞닿은 두 손(박수)은 둘로', () => {
+  const tr = new HandTracker();
+  const a = synthHand({ x: 400, y: 300, size: 150, pose: 'open', side: 'right' });
+  const dup = synthHand({ x: 420, y: 310, size: 140, pose: 'open', side: 'right' });
+  let hs = tr.update([{ lm: a, side: 'right' }, { lm: dup, side: 'right' }], 0.03);
+  assert.equal(hs.length, 1, '중복 손은 하나로');
+  const tr2 = new HandTracker();
+  const left = synthHand({ x: 420, y: 300, size: 150, pose: 'open', side: 'left' });
+  hs = tr2.update([{ lm: a, side: 'right' }, { lm: left, side: 'left' }], 0.03);
+  assert.equal(hs.length, 2, '왼손·오른손은 붙어 있어도 둘');
+});
+
+test('HandTracker: 화면 가장자리에 잘린 손은 새로 주먹으로 바뀌지 않는다', () => {
+  const tr = new HandTracker();
+  let t = 0;
+  let hs;
+  for (let i = 0; i < 6; i++) hs = tr.update([{ lm: synthHand({ x: 400, y: 100, pose: 'v' }), side: 'right' }], (t += 1 / 30));
+  assert.equal(hs[0].pose, 'v');
+  for (let i = 0; i < 8; i++) hs = tr.update([{ lm: synthHand({ x: 400, y: 100, pose: 'fist' }), side: 'right', clipped: true }], (t += 1 / 30));
+  assert.equal(hs[0].pose, 'v', '잘린 손은 지금 모양 유지');
+  for (let i = 0; i < 8; i++) hs = tr.update([{ lm: synthHand({ x: 400, y: 300, pose: 'fist' }), side: 'right' }], (t += 1 / 30));
+  assert.equal(hs[0].pose, 'fist', '화면 안으로 들어오면 주먹');
+});
+
+test('BlowDetector: 잠든 AudioContext·빈 소리 데이터로는 바닥값을 잡지 않는다', async () => {
+  const { BlowDetector } = await import('../src/core/mic.js');
+  const bins = 512;
+  let spectrum = new Float32Array(bins).fill(-Infinity);
+  const ctx = { sampleRate: 48000, currentTime: 0, state: 'suspended' };
+  const d = new BlowDetector(ctx, { playingNoise: false });
+  d.analyser = { getFloatFrequencyData: (arr) => arr.set(spectrum) };
+  d.data = new Float32Array(bins);
+  d.enabled = true;
+  for (let i = 0; i < 60; i++) d.update(1 / 60);
+  assert.equal(d.floorDb, null, '잠든 동안은 아무것도 재지 않음');
+  ctx.state = 'running';
+  for (let i = 0; i < 60; i++) d.update(1 / 60);
+  assert.equal(d.floorDb, null, '소리 데이터가 아직 없음(-Infinity)');
+  spectrum = new Float32Array(bins).fill(-95); // 조용한 방
+  for (let i = 0; i < 200; i++) d.update(1 / 60);
+  assert.ok(Number.isFinite(d.floorDb));
+  assert.equal(d.blowing, false, '조용한 방 소음은 입김이 아니다');
+});

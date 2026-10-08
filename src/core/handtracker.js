@@ -44,17 +44,30 @@ export class HandTracker {
   }
 
   /**
-   * @param {{lm:Point[], side?:'left'|'right', score?:number}[]} detections 화면 px 좌표
+   * @param {{lm:Point[], side?:'left'|'right', score?:number, clipped?:boolean}[]} detections 화면 px 좌표
+   *   (clipped: 손이 카메라 화면 가장자리에 걸려 일부가 잘렸을 수 있음)
    * @param {number} t 초 단위 시각
    * @returns {Hand[]}
    */
   update(detections, t) {
     this.lastT = t;
 
-    const dets = detections.map((d) => {
+    const all = detections.map((d) => {
       const a = analyzeHand(d.lm);
       return { ...d, palm: a.palm, size: a.size };
     });
+    // MediaPipe 가 같은 손을 두 번 찾는 경우가 있다: 같은 쪽 손이 거의 같은 자리에 겹치면 큰 쪽만 남긴다
+    // (왼손·오른손이 맞닿는 박수는 쪽이 다르므로 합치지 않는다)
+    const dets = all.filter(
+      (d, i) =>
+        !all.some(
+          (o, j) =>
+            j !== i &&
+            (o.size > d.size || (o.size === d.size && j < i)) &&
+            (!o.side || !d.side || o.side === d.side) &&
+            dist(o.palm, d.palm) < 0.6 * o.size,
+        ),
+    );
 
     // 가까운 순서대로 기존 추적과 짝짓기 (손이 많지 않으니 탐욕 매칭으로 충분)
     const pairs = [];
@@ -149,7 +162,9 @@ export class HandTracker {
     const lm = track.filter.filter(det.lm, elapsed);
     const a = analyzeHand(lm);
     const prevPalm = h.palm;
-    const raw = classifyPose(a, h.pose);
+    let raw = classifyPose(a, h.pose);
+    // 카메라 화면 가장자리에 걸려 손가락이 잘린 손은 접힌 것처럼 보인다: 새로 주먹/집기로 바뀌지 않게 지금 모양을 유지
+    if (det.clipped && (raw === 'fist' || raw === 'pinch') && raw !== h.pose) raw = h.pose;
     const st = track.stab.push(raw);
 
     h.rawLm = det.lm;

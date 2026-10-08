@@ -65,6 +65,10 @@ export class App {
     this.frameCount = 0;
     this._lastVideoTime = -1;
     this._lastT = null;
+    this._detectCount = 0;
+    this._starting = false;
+    this._pendingMode = null;
+    this._audioStream = null;
     this.ui = new UI(this, MODES);
     this._resize();
     window.addEventListener('resize', () => this._resize());
@@ -95,10 +99,22 @@ export class App {
 
   async start({ sim = false, modeId = null } = {}) {
     if (this.started) {
+      // 카메라로 놀다가 '마우스로 연습하기'를 고르거나 그 반대면, 깨끗하게 다시 시작한다.
+      if (!!sim !== this.isSim) {
+        this._relaunch({ sim, modeId: modeId || this.modeDef?.id });
+        return;
+      }
       this.ui.showStart(false);
       if (modeId) this.switchMode(modeId);
       return;
     }
+    // 준비 중에 또 누르면(카드를 두 번, 다른 카드) 카메라를 두 번 켜지 않고 고른 놀이만 기억한다.
+    if (this._starting) {
+      if (modeId) this._pendingMode = modeId;
+      return;
+    }
+    this._starting = true;
+    this._pendingMode = null;
     this.sound.unlock();
     this.ui.hideError();
     this.ui.showStart(false);
@@ -112,12 +128,17 @@ export class App {
         const { audioStream } = await openCamera(this.video, { audio: true });
         this.source = this.video;
         this.viewport.mirror = true;
+        this._audioStream = audioStream;
         if (audioStream && this.sound.ctx) {
           this.mic = new BlowDetector(this.sound.ctx, this.sound);
           this.mic.attach(audioStream);
         }
+        for (const track of this.video.srcObject?.getVideoTracks?.() || []) {
+          track.addEventListener('ended', () => this._cameraLost(), { once: true });
+        }
       } catch (e) {
-        this._cameraError(e, def.id);
+        this._starting = false;
+        this._cameraError(e, this._pendingMode || def.id);
         return;
       }
       this.ui.showStatus('손을 알아보는 준비를 하고 있어요… ✋');
@@ -127,24 +148,57 @@ export class App {
         this.stats.source = this.tracker.source === 'local' ? '로컬 모델' : 'CDN 모델';
       } catch (e) {
         console.error(e);
+        this._starting = false;
+        const id = this._pendingMode || def.id;
         this.ui.showError({
           title: '손 인식 준비에 실패했어요 😢',
           message: '인터넷 연결을 확인해 주세요. 오프라인 전시라면 README 의 "오프라인 준비"를 따라 해 주세요.',
           actions: [
             { label: '다시 시도', onClick: () => location.reload() },
-            { label: '마우스로 연습하기', onClick: () => this._fallbackToSim(def.id) },
+            { label: '마우스로 연습하기', onClick: () => this._fallbackToSim(id) },
           ],
         });
         return;
       }
       this.ui.showStatus(null);
     }
+    this._starting = false;
     this.started = true;
-    this.switchMode(def.id);
+    this.switchMode(this._pendingMode || def.id);
+    this._pendingMode = null;
     if (!this.running) {
       this.running = true;
       requestAnimationFrame(this.frame);
     }
+  }
+
+  /** 카메라 ↔ 연습 모드를 바꿀 때는 페이지를 새로 연다 (카메라·인식기·마이크를 깔끔하게 정리하는 가장 확실한 방법). */
+  _relaunch({ sim, modeId }) {
+    const u = new URL(location.href);
+    u.searchParams.delete('sim');
+    u.searchParams.delete('autostart');
+    u.searchParams.set(sim ? 'sim' : 'autostart', '');
+    if (modeId) u.searchParams.set('mode', modeId);
+    location.assign(u);
+  }
+
+  /** 놀이 중에 카메라 연결이 끊겼을 때 */
+  _cameraLost() {
+    if (this.sim) return;
+    this.ui.showError({
+      title: '카메라 연결이 끊겼어요 📷',
+      message: '카메라 선이 잘 꽂혀 있는지 확인한 뒤 다시 시도해 주세요.',
+      actions: [{ label: '다시 시도', onClick: () => this._relaunch({ sim: false, modeId: this.modeDef?.id }) }],
+    });
+  }
+
+  /** 카메라·마이크를 끈다 (연습 모드로 바꿀 때) */
+  _stopCamera() {
+    for (const t of this.video.srcObject?.getTracks?.() || []) t.stop();
+    this.video.srcObject = null;
+    for (const t of this._audioStream?.getTracks?.() || []) t.stop();
+    this._audioStream = null;
+    this.mic = null;
   }
 
   _startSim() {
@@ -161,6 +215,7 @@ export class App {
 
   _fallbackToSim(modeId) {
     this.tracker = null;
+    this._stopCamera();
     this._startSim();
     this.started = true;
     this.switchMode(modeId);
@@ -176,10 +231,11 @@ export class App {
       denied: '카메라 사용을 허락해 주세요. 주소창 옆 🔒 아이콘에서 카메라를 "허용"으로 바꾼 뒤 다시 시도해 주세요.',
       notfound: '연결된 카메라를 찾지 못했어요. 카메라를 연결한 뒤 다시 시도해 주세요.',
       unsupported: '이 브라우저에서는 카메라를 쓸 수 없어요. 크롬이나 사파리 최신 버전에서 https 주소로 열어 주세요.',
+      busy: '다른 프로그램(화상회의, 카메라 앱, 다른 브라우저 탭)이 카메라를 쓰고 있어요. 그 프로그램을 닫고 다시 시도해 주세요.',
     };
     this.ui.showError({
       title: '카메라를 켤 수 없어요 📷',
-      message: messages[e.code] || `문제가 생겼어요: ${e.message}`,
+      message: messages[e.code] || `카메라를 켜는 중에 문제가 생겼어요. 카메라 연결을 확인하고 다시 시도해 주세요. (${e.name || 'Error'}: ${e.message})`,
       actions: [
         { label: '다시 시도', onClick: () => this.start({ modeId }) },
         { label: '마우스로 연습하기', onClick: () => this._fallbackToSim(modeId) },
@@ -209,19 +265,32 @@ export class App {
     history.replaceState(null, '', url);
     if (def.needs?.face && this.tracker) {
       if (!this.tracker.face) this.ui.showStatus('얼굴을 알아보는 준비를 하고 있어요… 🙂');
+      const wantsFace = () => !!this.modeDef?.needs?.face;
       this.tracker
         .initFace()
-        .then(() => this.ui.showStatus(null))
+        .then(() => {
+          if (wantsFace()) this.ui.showStatus(null);
+        })
         .catch((e) => {
           console.error(e);
           this.ui.showStatus(null);
-          this.ui.toast('얼굴 인식을 불러오지 못했어요 😢');
+          if (wantsFace()) this.ui.toast('얼굴 인식을 불러오지 못했어요 😢');
         });
+    } else if (this.tracker) {
+      // 얼굴 모델을 받는 중에 얼굴이 필요 없는 놀이로 바꾸면 안내를 치운다
+      this.ui.showStatus(null);
     }
   }
 
   showMenu() {
+    // 아직 준비 중이면(카메라 허락 창, 모델 내려받는 중) 메뉴로 돌아가지 않는다
+    if (!this.started) return;
+    this.sound.stopAllLoops();
     this.ui.showStart(true);
+  }
+
+  get menuOpen() {
+    return !this.ui.startEl.hidden;
   }
 
   // ------------------------------------------------------------------ 매 프레임
@@ -235,6 +304,9 @@ export class App {
     this.clock += dt;
     this.frameCount++;
     if (dt > 0) this.stats.fps += (1 / dt - this.stats.fps) * 0.05;
+
+    // 처음 화면(메뉴)이 떠 있는 동안은 놀이를 멈춘다 (소리·인식도 쉬게)
+    if (this.menuOpen) return;
 
     const needFace = !!this.modeDef?.needs?.face;
     let det = null;
@@ -250,8 +322,11 @@ export class App {
       if (this.video.currentTime !== this._lastVideoTime) {
         this._lastVideoTime = this.video.currentTime;
         const t0 = performance.now();
+        // 인식이 느린 컴퓨터에서는 얼굴은 한 프레임 걸러 한 번만 본다 (손은 매번)
+        const slow = this.stats.detectMs > 22;
+        const face = needFace && (!slow || this._detectCount++ % 2 === 0);
         try {
-          det = this.tracker.detect(this.video, nowMs, { face: needFace });
+          det = this.tracker.detect(this.video, nowMs, { face });
         } catch (e) {
           console.error(e);
         }
@@ -318,7 +393,8 @@ export class App {
     this.overlay.width = Math.round(this.width * this.dpr);
     this.overlay.height = Math.round(this.height * this.dpr);
     this.viewport.resize(this.width, this.height);
-    this.stage.resize(this.width, this.height, this.dpr);
+    // 카메라 영상은 720p 라서 무대를 기기 해상도 그대로(2배) 그려도 더 선명해지지 않는다
+    this.stage.resize(this.width, this.height, Math.min(this.dpr, 1.5));
     this.mode?.resize?.(this.width, this.height);
   }
 

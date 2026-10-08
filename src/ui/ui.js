@@ -60,7 +60,11 @@ export class UI {
   _buildBar() {
     this.buttons = new Map();
     for (const m of this.modes) {
-      const b = el('button', { class: 'mode-btn', title: m.title, style: { '--c': m.color }, onclick: () => this.app.switchMode(m.id) }, [
+      // 지금 하고 있는 놀이 버튼을 또 눌러도 처음부터 다시 시작하지 않는다 (숫자 키는 직원용 초기화로 남겨 둔다)
+      const pick = () => {
+        if (this.app.modeDef?.id !== m.id) this.app.switchMode(m.id);
+      };
+      const b = el('button', { class: 'mode-btn', title: m.title, style: { '--c': m.color }, onclick: pick }, [
         el('span', { class: 'mode-emoji', text: m.emoji }),
         el('span', { class: 'mode-label', text: m.title }),
       ]);

@@ -65,6 +65,9 @@ export class BlowDetector {
   attach(stream) {
     if (!stream || !this.ctx) return;
     const src = this.ctx.createMediaStreamSource(stream);
+    // 소스 노드를 붙잡아 두지 않으면, AudioContext 가 잠든(suspended) 사이 브라우저가 지워 버려 마이크가 영영 조용해진다
+    this.source = src;
+    this.stream = stream;
     const an = this.ctx.createAnalyser();
     an.fftSize = 1024;
     an.smoothingTimeConstant = 0.2;
@@ -77,13 +80,17 @@ export class BlowDetector {
   /** 매 프레임 호출 */
   update(dt) {
     if (!this.analyser) return this;
+    // 사용자가 화면을 한 번 누르기 전(자동 시작)에는 AudioContext 가 잠들어 있다: 그동안은 아무것도 재지 않는다
+    if (this.ctx.state && this.ctx.state !== 'running') return this;
     this.analyser.getFloatFrequencyData(this.data);
-    this._age += dt;
     if (this.floorDb === null) {
-      const first = analyzeSpectrum(this.data, this.ctx.sampleRate, 0).levelDb;
-      if (!Number.isFinite(first) || first < -200) return this;
-      this.floorDb = first;
+      // 아직 소리 데이터가 없으면(-Infinity) 기다린다 — 무음으로 바닥값을 잡으면 방 소음이 입김으로 들린다
+      let any = false;
+      for (let i = 1; i < this.data.length && !any; i++) any = Number.isFinite(this.data[i]) && this.data[i] > -139;
+      if (!any) return this;
+      this.floorDb = analyzeSpectrum(this.data, this.ctx.sampleRate, 0).levelDb;
     }
+    this._age += dt;
     const a = analyzeSpectrum(this.data, this.ctx.sampleRate, this.floorDb);
     // 바닥값: 조용해지면 빠르게 내려가고, 시끄러운 상태가 오래 가면 아주 천천히 올라간다.
     // 처음 2초는 주변 소음에 빨리 맞추는 '보정' 시간이다.

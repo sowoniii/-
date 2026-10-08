@@ -121,7 +121,15 @@ export class Stage {
   }
 
   _init() {
-    const gl = this.canvas.getContext('webgl', { alpha: false, antialias: true, premultipliedAlpha: false, preserveDrawingBuffer: false });
+    // 격자 안쪽 모서리와 가장자리를 흐리게 처리한 조각만 그리므로 MSAA·깊이 버퍼는 필요 없다 (고해상도 화면에서 GPU 부담만 커진다)
+    const gl = this.canvas.getContext('webgl', {
+      alpha: false,
+      antialias: false,
+      depth: false,
+      stencil: false,
+      premultipliedAlpha: false,
+      preserveDrawingBuffer: false,
+    });
     if (!gl) {
       this.ok = false;
       return;

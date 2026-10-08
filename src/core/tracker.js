@@ -22,7 +22,8 @@ const abs = (u) => new URL(u, document.baseURI).href;
 async function exists(url) {
   try {
     const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-    return r.ok;
+    // 없는 주소에 index.html 을 돌려주는 호스팅(SPA 설정 등)은 200 이어도 진짜 파일이 아니다
+    return r.ok && !/text\/html/i.test(r.headers.get('content-type') || '');
   } catch {
     return false;
   }
@@ -48,12 +49,24 @@ export class Tracker {
   async _vision() {
     if (this._visionPromise) return this._visionPromise;
     this._visionPromise = (async () => {
-      const local = await exists(ASSETS.bundle.local);
-      this.source = local ? 'local' : 'cdn';
-      const mod = await import(local ? abs(ASSETS.bundle.local) : ASSETS.bundle.remote);
-      const fileset = await mod.FilesetResolver.forVisionTasks(local ? abs(ASSETS.wasm.local) : ASSETS.wasm.remote);
+      if (await exists(ASSETS.bundle.local)) {
+        try {
+          const mod = await import(abs(ASSETS.bundle.local));
+          const fileset = await mod.FilesetResolver.forVisionTasks(abs(ASSETS.wasm.local));
+          this.source = 'local';
+          return { mod, fileset };
+        } catch (e) {
+          console.warn('vendor/ 의 MediaPipe 를 쓰지 못해 CDN 에서 불러옵니다.', e);
+        }
+      }
+      this.source = 'cdn';
+      const mod = await import(ASSETS.bundle.remote);
+      const fileset = await mod.FilesetResolver.forVisionTasks(ASSETS.wasm.remote);
       return { mod, fileset };
-    })();
+    })().catch((e) => {
+      this._visionPromise = null;
+      throw e;
+    });
     return this._visionPromise;
   }
 
@@ -125,7 +138,10 @@ export class Tracker {
         const cat = (r.handedness?.[i] || r.handednesses?.[i] || [])[0];
         // MediaPipe 는 거울 영상을 가정하고 왼손/오른손을 붙인다. 우리는 원본(거울 아님)을 넣으므로 반대로 바꾼다.
         const side = cat ? (cat.categoryName === 'Left' ? 'right' : 'left') : 'right';
-        out.hands.push({ lm: r.landmarks[i].map((p) => vp.toScreen(p.x, p.y, p.z)), side, score: cat?.score ?? 1 });
+        const lms = r.landmarks[i];
+        // 손가락 뿌리가 카메라 화면 가장자리에 붙어 있으면 손가락이 화면 밖으로 잘렸을 수 있다
+        const clipped = [5, 9, 13, 17].some((k) => lms[k].y < 0.06 || lms[k].x < 0.04 || lms[k].x > 0.96);
+        out.hands.push({ lm: lms.map((p) => vp.toScreen(p.x, p.y, p.z)), side, score: cat?.score ?? 1, clipped });
       }
     }
     if (face && this.face) {

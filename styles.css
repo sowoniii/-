@@ -58,7 +58,9 @@ button {
   top: max(16px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
-  max-width: min(90vw, 900px);
+  /* left:50% 인 절대 위치 상자는 저절로 화면 절반 너비까지만 넓어지므로 내용 너비를 직접 준다 */
+  width: max-content;
+  max-width: min(900px, calc(100vw - 380px));
   padding: 14px 28px;
   border-radius: 999px;
   background: rgba(255, 253, 247, 0.92);
@@ -91,7 +93,9 @@ button {
   text-shadow: 0 6px 0 rgba(42, 35, 80, 0.35);
   opacity: 0;
   pointer-events: none;
-  white-space: nowrap;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  text-align: center;
 }
 .toast.show {
   animation: toast 1.6s ease-out forwards;
@@ -225,7 +229,7 @@ button {
   display: none;
   position: absolute;
   left: 12px;
-  top: max(84px, calc(env(safe-area-inset-top) + 72px));
+  top: max(112px, calc(env(safe-area-inset-top) + 100px));
   max-width: 300px;
   padding: 8px 12px;
   border-radius: 12px;
@@ -252,7 +256,8 @@ body:not(.playing) #hud {
   background: radial-gradient(circle at 20% 10%, #ffe082 0, transparent 35%), radial-gradient(circle at 85% 20%, #f8bbd0 0, transparent 35%),
     radial-gradient(circle at 50% 100%, #b3e5fc 0, transparent 50%), #fff6e5;
   display: flex;
-  align-items: center;
+  /* 화면보다 내용이 길면 위쪽이 잘리지 않고 스크롤되도록: 가운데 정렬은 margin:auto 로 */
+  align-items: flex-start;
   justify-content: center;
   padding: 24px 16px;
 }
@@ -261,6 +266,7 @@ body:not(.playing) #hud {
 }
 .start-inner {
   width: min(1100px, 100%);
+  margin: auto 0;
   text-align: center;
 }
 .title {
@@ -421,6 +427,17 @@ body:not(.playing) #hud {
   box-shadow: 0 5px 0 rgba(0, 0, 0, 0.2);
 }
 
+@media (max-width: 800px) {
+  .hint {
+    top: 72px;
+    max-width: 90vw;
+  }
+  /* 키보드 단축키 안내는 좁은 화면(휴대폰·태블릿)에서는 쓸 수 없으니 숨긴다 */
+  body.sim.playing .sim-help {
+    display: none;
+  }
+}
+
 @media (max-width: 600px) {
   .modebar {
     gap: 6px;
@@ -433,8 +450,5 @@ body:not(.playing) #hud {
     width: 44px;
     height: 44px;
     font-size: 20px;
-  }
-  .hint {
-    top: 72px;
   }
 }

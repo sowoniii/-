@@ -35,7 +35,9 @@ npm start
 ```
 
 `vendor/` 폴더가 있으면 앱이 자동으로 그것을 사용합니다. 이후에는 인터넷 없이 동작합니다
-(제목 글꼴만 인터넷이 없으면 기본 글꼴로 보입니다).
+(인터넷이 없으면 글자는 귀여운 Jua 글꼴 대신 기기의 기본 한글 글꼴로 보입니다).
+프록시를 거쳐야 하는 네트워크라면 `HTTPS_PROXY` 환경 변수를 설정한 뒤 실행하세요 (Node 22.21 이상).
+`npm start` 서버는 같은 컴퓨터(localhost)에서만 접속됩니다 — 카메라는 https 가 아니면 localhost 에서만 켜지기 때문입니다.
 
 ## 전시(키오스크) 설정
 
@@ -94,3 +96,5 @@ npm run fixtures     # tests/fixtures/real-landmarks.json 다시 만들기
 손 모양 판별은 MediaPipe 공식 테스트 사진(브이, 가리키기, 주먹, 엄지 척, 펼친 손)에서 뽑은 실제 랜드마크로도 검증합니다.
 
 `npm run e2e` 는 Playwright 가 필요합니다 (`npm i -D playwright && npx playwright install chromium`).
+실제 인식기 점검까지 하려면 먼저 `npm run setup` 으로 vendor/ 를 준비하세요 (건너뛰려면 `SKIP_CAMERA=1 npm run e2e`).
+`npm test` 는 Node 20 이상에서 동작합니다 (앱 실행 자체는 Node 18 이상).

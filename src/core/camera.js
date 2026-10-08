@@ -46,6 +46,14 @@ export async function openCamera(video, { audio = true } = {}) {
 function tag(e) {
   const err = new Error(e?.message || String(e));
   err.name = e?.name || 'Error';
-  err.code = e?.name === 'NotAllowedError' || e?.name === 'SecurityError' ? 'denied' : e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError' ? 'notfound' : 'error';
+  const name = e?.name;
+  err.code =
+    name === 'NotAllowedError' || name === 'SecurityError'
+      ? 'denied'
+      : name === 'NotFoundError' || name === 'OverconstrainedError'
+        ? 'notfound'
+        : name === 'NotReadableError' || name === 'TrackStartError' || name === 'AbortError'
+          ? 'busy'
+          : 'error';
   return err;
 }
