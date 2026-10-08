@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1b1f3b" />
+    <title>손으로 놀자!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="stage"></canvas>
+    <canvas id="overlay"></canvas>
+
+    <div id="hud">
+      <div id="hint" class="hint" hidden></div>
+      <div id="toast" class="toast" aria-live="polite"></div>
+      <div id="nohand" class="nohand">손을 화면에 보여 주세요 🙌</div>
+      <div class="top-buttons">
+        <button id="btn-home" class="icon-btn" title="처음 화면 (Esc)">🏠</button>
+        <button id="btn-mute" class="icon-btn" title="소리 켜기/끄기 (M)">🔊</button>
+        <button id="btn-full" class="icon-btn" title="전체 화면">⛶</button>
+      </div>
+      <nav id="modebar" class="modebar" aria-label="놀이 고르기"></nav>
+      <div class="sim-help">연습 모드 · 마우스=손 · 누르기=주먹 · Q펼침 W주먹 E브이 R가리킴 T집기 · Shift=두번째 손(G) · F얼굴 · B입김</div>
+    </div>
+
+    <div id="status" class="status" hidden>
+      <div class="spinner"></div>
+      <div class="status-text"></div>
+    </div>
+
+    <section id="start" class="start">
+      <div class="start-inner">
+        <h1 class="title"><span class="wave">✋</span> 손으로 놀자! <span class="wave delay">🤚</span></h1>
+        <p class="subtitle">카메라 앞에 서서 손을 움직여 보세요. 놀이를 골라요!</p>
+        <div id="cards" class="cards"></div>
+        <button id="practice" class="link-btn">카메라 없이 마우스로 연습하기 🖱️</button>
+        <p class="note">카메라 영상은 이 기기 안에서만 처리되고 어디에도 저장되거나 보내지지 않아요.</p>
+      </div>
+    </section>
+
+    <section id="error" class="error" hidden>
+      <div class="error-card">
+        <div class="error-title"></div>
+        <p class="error-message"></p>
+        <div class="error-actions"></div>
+      </div>
+    </section>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

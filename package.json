@@ -1,0 +1,17 @@
+{
+  "name": "handplay",
+  "version": "1.0.0",
+  "description": "아이들을 위한 카메라 손동작 체험 놀이 (비눗방울, 입김 그림, 동물 귀, 늘어나는 손가락, 말랑 화면)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs 8080",
+    "setup": "node scripts/setup-offline.mjs",
+    "test": "node --test \"tests/**/*.test.js\"",
+    "e2e": "node tests/e2e/smoke.mjs"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.35"
+  },
+  "license": "MIT"
+}
