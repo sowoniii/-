@@ -167,7 +167,9 @@ export class UI {
   /** 매 프레임: 손 안내, 손가락 머무르기 선택 */
   update(frame) {
     const live = frame.hands.filter((h) => !h.stale);
-    this._noHandTime = live.length ? 0 : this._noHandTime + frame.dt;
+    // 얼굴이 보이면 놀이 자체 안내가 코치하므로 '손을 보여 주세요' 는 띄우지 않는다.
+    const someone = live.length > 0 || frame.faces.length > 0;
+    this._noHandTime = someone ? 0 : this._noHandTime + frame.dt;
     this.noHandEl.classList.toggle('show', this._noHandTime > NO_HAND_HINT_AFTER);
 
     // 아래 버튼을 검지로 가리키고 기다리면 선택
