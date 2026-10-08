@@ -633,16 +633,16 @@ test('손이 너무 빨리 움직여 인식기가 새 id 를 붙여도(옛 손�
   };
   for (let i = 0; i < 6; i++) step({ x: 770, y: 400, size: 140, pose: 'fist' });
   const g = gr.list[0];
-  // 한 프레임에 240px 순간이동 → 새 추적 id (옛 손은 stale 로 남음)
+  // 한 프레임에 300px 순간이동 → 새 추적 id (옛 손은 stale 로 남음)
   let hs;
-  for (let i = 0; i < 6; i++) hs = step({ x: 530, y: 360, size: 140, pose: 'fist' });
+  for (let i = 0; i < 6; i++) hs = step({ x: 470, y: 360, size: 140, pose: 'fist' });
   assert.ok(events.some((e) => e.type === 'adopt'), JSON.stringify(events.map((e) => e.type)));
   assert.equal(gr.created, 1, '새로 잡지 않음');
   assert.equal(gr.count, 1);
   assert.equal(gr.list[0], g);
   assert.ok(Math.abs(g.p0.x - 770) < 5, '처음 잡은 점 유지');
-  assert.ok(g.pos.x < 560, `손을 따라감 ${g.pos.x}`);
-  for (let i = 0; i < 10; i++) hs = step({ x: 530, y: 360, size: 140, pose: 'fist' });
+  assert.ok(g.pos.x < 500, `손을 따라감 ${g.pos.x}`);
+  for (let i = 0; i < 10; i++) hs = step({ x: 470, y: 360, size: 140, pose: 'fist' });
   assert.equal(hs.length, 1);
   assert.equal(gr.count, 1);
 });

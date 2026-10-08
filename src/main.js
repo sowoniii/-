@@ -59,6 +59,10 @@ export class App {
     this.height = 1;
     this.dpr = 1;
     this.stats = { fps: 0, detectMs: 0, source: '' };
+    /** 놀이 시간: frame.dt 를 더한 값 (느린 기기에서는 실제 시간보다 천천히 간다) */
+    this.clock = 0;
+    /** 그린 프레임 수 */
+    this.frameCount = 0;
     this._lastVideoTime = -1;
     this._lastT = null;
     this.ui = new UI(this, MODES);
@@ -109,7 +113,7 @@ export class App {
         this.source = this.video;
         this.viewport.mirror = true;
         if (audioStream && this.sound.ctx) {
-          this.mic = new BlowDetector(this.sound.ctx);
+          this.mic = new BlowDetector(this.sound.ctx, this.sound);
           this.mic.attach(audioStream);
         }
       } catch (e) {
@@ -225,8 +229,11 @@ export class App {
   frame(nowMs) {
     requestAnimationFrame(this.frame);
     const t = nowMs / 1000;
-    const dt = this._lastT === null ? 1 / 60 : Math.min(0.05, Math.max(0, t - this._lastT));
+    const realDt = this._lastT === null ? 1 / 60 : Math.min(0.25, Math.max(0, t - this._lastT));
+    const dt = Math.min(0.05, realDt);
     this._lastT = t;
+    this.clock += dt;
+    this.frameCount++;
     if (dt > 0) this.stats.fps += (1 / dt - this.stats.fps) * 0.05;
 
     const needFace = !!this.modeDef?.needs?.face;
@@ -262,14 +269,16 @@ export class App {
 
     let mic;
     if (this.sim) {
-      mic = { enabled: true, level: this.sim.mic.blowing ? this.sim.mic.strength : 0, blowing: this.sim.mic.blowing, strength: this.sim.mic.blowing ? this.sim.mic.strength : 0 };
+      const m = this.sim.mic;
+      const strength = m.blowing ? m.strength ?? 0.8 : 0;
+      mic = { enabled: m.enabled ?? true, level: m.level ?? strength, blowing: !!m.blowing, strength };
     } else if (this.mic) {
       mic = this.mic.update(dt).state;
     } else {
       mic = { enabled: false, level: 0, blowing: false, strength: 0 };
     }
 
-    const frame = { t, dt, width: this.width, height: this.height, hands: this.hands, faces: this.faces, mic };
+    const frame = { t, dt, realDt, frame: this.frameCount, width: this.width, height: this.height, hands: this.hands, faces: this.faces, mic };
 
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);

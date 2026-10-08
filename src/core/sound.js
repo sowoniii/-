@@ -7,6 +7,8 @@ export class Sound {
     this.muted = false;
     this._noise = null;
     this._loops = new Map();
+    /** 잡음 같은 소리가 끝나는 시각 (ctx 시간). 마이크가 우리 소리를 입김으로 착각하지 않게 알려 준다. */
+    this.noiseUntil = 0;
   }
 
   /** 사용자 클릭/터치 안에서 호출해야 소리가 난다 (브라우저 정책). */
@@ -82,6 +84,15 @@ export class Sound {
     src.connect(f).connect(g).connect(this.master);
     src.start(t, Math.random() * 0.5);
     src.stop(t + dur + 0.05);
+    this.noiseUntil = Math.max(this.noiseUntil, t + dur + 0.05);
+  }
+
+  /** 지금 스피커로 잡음 같은 소리(팡, 휘익, 바람 소리 등)가 나오고 있는지 */
+  get playingNoise() {
+    if (!this.ctx) return false;
+    if (this.ctx.currentTime < this.noiseUntil) return true;
+    for (const l of this._loops.values()) if (l.filter) return true;
+    return false;
   }
 
   /** 비눗방울 터지는 소리. pitch 1 = 보통, 클수록 작은 방울 */

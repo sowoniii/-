@@ -39,9 +39,16 @@ export function analyzeSpectrum(db, sampleRate, floorDb) {
 }
 
 export class BlowDetector {
-  /** @param {AudioContext} ctx */
-  constructor(ctx) {
+  /**
+   * @param {AudioContext} ctx
+   * @param {{playingNoise:boolean}} [sound] 앱 효과음. 잡음 같은 효과음이 나는 동안은 입김으로 치지 않는다
+   *   (반향 제거를 꺼 두었으므로 스피커 소리가 그대로 마이크에 들어온다).
+   */
+  constructor(ctx, sound = null) {
     this.ctx = ctx;
+    this.sound = sound;
+    this.candidate = false;
+    this.flatness = 0;
     this.analyser = null;
     this.data = null;
     this.floorDb = null; // 첫 측정값으로 맞춘다
@@ -90,7 +97,9 @@ export class BlowDetector {
       return this;
     }
     this.level = clamp((a.levelDb - this.floorDb) / 40);
-    if (a.candidate) {
+    this.flatness = a.flatness;
+    this.candidate = a.candidate && !this.sound?.playingNoise;
+    if (this.candidate) {
       this._candTime += dt;
       this._quietTime = 0;
     } else {
@@ -105,6 +114,6 @@ export class BlowDetector {
   }
 
   get state() {
-    return { enabled: this.enabled, level: this.level, blowing: this.blowing, strength: this.strength };
+    return { enabled: this.enabled, level: this.level, blowing: this.blowing, strength: this.strength, candidate: this.candidate, flatness: this.flatness };
   }
 }

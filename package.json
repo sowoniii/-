@@ -8,7 +8,9 @@
     "start": "node scripts/serve.mjs 8080",
     "setup": "node scripts/setup-offline.mjs",
     "test": "node --test \"tests/**/*.test.js\"",
-    "e2e": "node tests/e2e/smoke.mjs"
+    "e2e": "node tests/e2e/smoke.mjs",
+    "e2e:real": "node tests/e2e/real-camera.mjs",
+    "fixtures": "node scripts/make-real-fixtures.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "0.10.35"

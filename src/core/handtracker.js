@@ -28,8 +28,9 @@ let nextHandId = 1;
  * @property {number} poseTime     현재 손 모양을 유지한 시간(초)
  * @property {number} pinchDist    엄지-검지 끝 거리 / 손 크기
  * @property {Point} pinchPoint    엄지와 검지 끝의 중간점
- * @property {{x:number,y:number}} velocity 손바닥 속도 (px/초)
+ * @property {{x:number,y:number}} velocity 손바닥 속도 (px/초). 잠깐 놓쳤다 돌아와도 튀지 않게 실제 경과 시간으로 잰다.
  * @property {number} age          추적된 시간(초)
+ * @property {number} frames       실제로 검출된 횟수 (막 나타난 손은 pose 가 아직 'other' 일 수 있다 — 3~5 이상이면 안정)
  * @property {boolean} stale       잠깐 놓친 상태 (마지막 위치 유지 중)
  */
 
@@ -48,7 +49,6 @@ export class HandTracker {
    * @returns {Hand[]}
    */
   update(detections, t) {
-    const dt = this.lastT === null ? 1 / 30 : Math.max(1e-3, Math.min(0.1, t - this.lastT));
     this.lastT = t;
 
     const dets = detections.map((d) => {
@@ -61,7 +61,9 @@ export class HandTracker {
     for (const [id, tr] of this.tracks) {
       for (let i = 0; i < dets.length; i++) {
         const d = dist(tr.hand.palm, dets[i].palm);
-        const limit = Math.max(tr.hand.size, dets[i].size) * 1.6;
+        // 놓쳤던 손은 그동안 움직였을 수 있으니 조금 더 멀리까지 찾는다
+        const gap = Math.min(this.grace, t - tr.lastSeen);
+        const limit = Math.max(tr.hand.size, dets[i].size) * (1.6 + gap * 4);
         if (d < limit) {
           const sidePenalty = dets[i].side && tr.hand.side !== dets[i].side ? 0.35 * limit : 0;
           pairs.push({ id, i, cost: d + sidePenalty });
@@ -75,12 +77,12 @@ export class HandTracker {
       if (usedTracks.has(p.id) || usedDets.has(p.i)) continue;
       usedTracks.add(p.id);
       usedDets.add(p.i);
-      this._apply(this.tracks.get(p.id), dets[p.i], t, dt);
+      this._apply(this.tracks.get(p.id), dets[p.i], t);
     }
     for (let i = 0; i < dets.length; i++) {
       if (usedDets.has(i)) continue;
       const track = this._create(dets[i], t);
-      this._apply(track, dets[i], t, dt);
+      this._apply(track, dets[i], t);
     }
     for (const [id, tr] of this.tracks) {
       if (usedTracks.has(id) || tr.lastSeen === t) continue;
@@ -127,6 +129,7 @@ export class HandTracker {
       velocity: { x: 0, y: 0 },
       born: t,
       age: 0,
+      frames: 0,
       stale: false,
     };
     const track = {
@@ -139,9 +142,11 @@ export class HandTracker {
     return track;
   }
 
-  _apply(track, det, t, dt) {
+  _apply(track, det, t) {
     const h = track.hand;
-    const lm = track.filter.filter(det.lm, dt);
+    // 이 손을 마지막으로 본 뒤 실제로 흐른 시간 (잠깐 놓쳤다면 여러 프레임 분량)
+    const elapsed = h.frames === 0 ? 1 / 30 : Math.max(1e-3, Math.min(0.25, t - track.lastSeen));
+    const lm = track.filter.filter(det.lm, elapsed);
     const a = analyzeHand(lm);
     const prevPalm = h.palm;
     const raw = classifyPose(a, h.pose);
@@ -159,10 +164,16 @@ export class HandTracker {
     h.openness = a.openness;
     h.pinchDist = a.pinchDist;
     h.pinchPoint = mid(lm[LM.THUMB_TIP], lm[LM.INDEX_TIP]);
-    const vx = (a.palm.x - prevPalm.x) / dt;
-    const vy = (a.palm.y - prevPalm.y) / dt;
-    const k = h.stale || track.lastSeen === h.born ? 1 : 0.35;
-    h.velocity = { x: h.velocity.x + (vx - h.velocity.x) * k, y: h.velocity.y + (vy - h.velocity.y) * k };
+    if (h.frames === 0) {
+      h.velocity = { x: 0, y: 0 };
+    } else {
+      const vx = (a.palm.x - prevPalm.x) / elapsed;
+      const vy = (a.palm.y - prevPalm.y) / elapsed;
+      // 놓쳤다 돌아온 첫 프레임은 평균 속도라 믿을 만하므로 바로 쓰고, 평소에는 부드럽게 섞는다
+      const k = h.stale ? 1 : 0.35;
+      h.velocity = { x: h.velocity.x + (vx - h.velocity.x) * k, y: h.velocity.y + (vy - h.velocity.y) * k };
+    }
+    h.frames++;
     h.started = st.changed ? st.pose : null;
     h.ended = st.changed ? st.prev : null;
     if (st.changed) {

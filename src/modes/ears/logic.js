@@ -21,11 +21,9 @@ import { FACE } from '../../core/synth.js';
  *         랜드마크 10(이마 가운데쯤) → 정수리가 0.41S, 머리 반폭이 0.58S 였다.
  *         아이는 얼굴에 비해 머리가 더 크고 머리카락도 있으니, 귀 뿌리는 머리카락 속에 살짝 묻히는 쪽으로 잡는다
  *         (둥둥 뜬 귀보다 머리카락에서 돋아난 귀가 훨씬 자연스럽다).
- * sim   : 연습 모드 만화 얼굴 (core/sim.js 가 그리는 머리카락 = 눈 사이가 중심이고 반지름이 얼굴 높이의 0.5 인 원).
  */
 export const HEAD = Object.freeze({
   camera: Object.freeze({ hair: 0.46, half: 0.6, round: 2.6, sink: 0.05 }),
-  sim: Object.freeze({ hair: 0.143, half: 0.595, round: 2, sink: 0.05 }),
 });
 
 /**
@@ -53,7 +51,7 @@ export function faceSize(face) {
  *   crown: 눈 사이 → 머리 꼭대기 거리 = 눈 → 이마 위 점(턱과 상관없음) + 그 위 머리 높이
  *   yaw  : 좌우로 돌린 각도 (라디안 추정)
  * @param {object} face Face (facetracker.js)
- * @param {{hair:number}} [profile] HEAD.camera | HEAD.sim
+ * @param {{hair:number}} [profile] HEAD.camera
  */
 export function headTarget(face, profile = HEAD.camera) {
   const eyes = { x: (face.leftEye.x + face.rightEye.x) / 2, y: (face.leftEye.y + face.rightEye.y) / 2 };
@@ -86,7 +84,7 @@ const _pt = { lat: 0, upv: 0 };
  * @param {{x:number,y:number,ang:number,size:number,crown:number,yaw:number}} head
  * @param {import('./animals.js').Animal} animal
  * @param {object[]} [out] 재사용할 결과 배열 (길이 2)
- * @param {{half:number, round:number, sink:number}} [profile] HEAD.camera | HEAD.sim
+ * @param {{half:number, round:number, sink:number}} [profile] HEAD.camera
  * @returns {{x:number,y:number,side:number,rest:number,angle:number,widthMul:number,depth:number,near:boolean}[]}
  */
 export function earAnchors(head, animal, out = [{}, {}], profile = HEAD.camera) {

@@ -188,3 +188,65 @@ test('수학 도우미', () => {
   assert.ok(Math.abs(wrapAngle(3 * Math.PI) - Math.PI) < 1e-9 || Math.abs(wrapAngle(3 * Math.PI) + Math.PI) < 1e-9);
   assert.equal(distToSegment({ x: 0, y: 5 }, { x: -10, y: 0 }, { x: 10, y: 0 }), 5);
 });
+
+test('HandTracker: 잠깐 놓쳤다 돌아와도 속도가 튀지 않는다', () => {
+  const tr = new HandTracker({ grace: 0.2 });
+  const speed = 450; // px/s
+  let t = 0;
+  let x = 200;
+  let hs;
+  const step = (visible) => {
+    t += 1 / 30;
+    x += speed / 30;
+    return tr.update(visible ? [{ lm: synthHand({ x, y: 300, pose: 'open' }), side: 'right' }] : [], t);
+  };
+  for (let i = 0; i < 15; i++) hs = step(true);
+  const id = hs[0].id;
+  for (let i = 0; i < 3; i++) step(false);
+  hs = step(true);
+  assert.equal(hs[0].id, id, '같은 손으로 이어진다');
+  assert.ok(hs[0].velocity.x < speed * 1.3 && hs[0].velocity.x > speed * 0.5, `속도 ${hs[0].velocity.x}`);
+  assert.ok(hs[0].frames >= 16);
+});
+
+test('FaceTracker: size 는 입을 벌려도 그대로, headTop 은 턱과 무관', () => {
+  const tr = new FaceTracker();
+  const a = tr.update([{ lm: synthFace({ x: 600, y: 400, size: 300 }), blend: {} }], 0)[0];
+  const sizeA = a.size;
+  const topA = { ...a.headTop };
+  const tr2 = new FaceTracker();
+  const b = tr2.update([{ lm: synthFace({ x: 600, y: 400, size: 300, mouthOpen: 1 }), blend: {} }], 0)[0];
+  assert.ok(Math.abs(b.size - sizeA) < 1e-6);
+  assert.ok(Math.abs(b.headTop.y - topA.y) < 1e-6);
+  assert.ok(topA.y < a.forehead.y - 0.3 * sizeA, '정수리는 이마보다 충분히 위');
+});
+
+test('synthFace: 고개를 돌리면 yaw 가 같은 쪽으로 읽힌다', () => {
+  const tr = new FaceTracker();
+  const right = tr.update([{ lm: synthFace({ x: 600, y: 400, size: 300, yaw: 0.5 }), blend: {} }], 0)[0];
+  assert.ok(right.yaw > 0.15, `yaw ${right.yaw}`);
+  const tr2 = new FaceTracker();
+  const left = tr2.update([{ lm: synthFace({ x: 600, y: 400, size: 300, yaw: -0.5 }), blend: {} }], 0)[0];
+  assert.ok(left.yaw < -0.15);
+  assert.ok(Math.abs(right.size - left.size) < 2);
+});
+
+test('BlowDetector: 앱이 잡음 효과음을 내는 동안은 입김으로 치지 않는다', async () => {
+  const { BlowDetector } = await import('../src/core/mic.js');
+  const bins = 512;
+  let spectrum = new Float32Array(bins).fill(-100);
+  const ctx = { sampleRate: 48000, currentTime: 0 };
+  const sound = { playingNoise: false };
+  const d = new BlowDetector(ctx, sound);
+  d.analyser = { getFloatFrequencyData: (arr) => arr.set(spectrum) };
+  d.data = new Float32Array(bins);
+  d.enabled = true;
+  for (let i = 0; i < 150; i++) d.update(1 / 60); // 2초 보정
+  spectrum = Float32Array.from({ length: bins }, (_, i) => ((i * 24000) / bins < 600 ? -40 : -60));
+  sound.playingNoise = true;
+  for (let i = 0; i < 30; i++) d.update(1 / 60);
+  assert.equal(d.blowing, false, '우리 효과음은 입김이 아니다');
+  sound.playingNoise = false;
+  for (let i = 0; i < 30; i++) d.update(1 / 60);
+  assert.equal(d.blowing, true, '진짜 입김은 잡힌다');
+});

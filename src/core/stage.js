@@ -32,7 +32,9 @@ uniform vec4 u_tint;
 varying vec2 v_uv;
 varying float v_alpha;
 void main() {
-  vec4 c = u_hasTex > 0.5 ? texture2D(u_tex, clamp(v_uv, 0.0, 1.0)) : vec4(0.12, 0.13, 0.2, 1.0);
+  // 영상 바깥을 가져오면 가장자리 줄무늬 대신 거울처럼 접힌 영상을 보여 준다 (-1..2 범위)
+  vec2 uv = 1.0 - abs(1.0 - abs(v_uv));
+  vec4 c = u_hasTex > 0.5 ? texture2D(u_tex, clamp(uv, 0.0, 1.0)) : vec4(0.12, 0.13, 0.2, 1.0);
   c.rgb = mix(c.rgb, u_tint.rgb, u_tint.a);
   gl_FragColor = vec4(c.rgb, v_alpha * u_opacity);
 }`;

@@ -122,8 +122,18 @@ export class UI {
     this.hintEl.hidden = !text;
   }
 
-  /** 화면 가운데 큰 글씨로 잠깐 보여준다. */
-  toast(text, ms = 1600) {
+  /**
+   * 큰 글씨로 잠깐 보여준다. 기본은 화면 가운데.
+   * @param {string} text
+   * @param {number} [ms=1600]
+   * @param {{x?:number, y?:number, position?:'center'|'top'|'bottom'}} [opts]
+   *   얼굴·손을 가리지 않게 위치를 고를 수 있다. x, y 는 화면 px (글자 가운데).
+   */
+  toast(text, ms = 1600, opts = {}) {
+    const st = this.toastEl.style;
+    const pos = { center: '42%', top: '24%', bottom: '70%' }[opts.position] || null;
+    st.left = opts.x != null ? `${Math.round(opts.x)}px` : '';
+    st.top = opts.y != null ? `${Math.round(opts.y)}px` : pos || '';
     this.toastEl.textContent = text;
     this.toastEl.classList.remove('show');
     void this.toastEl.offsetWidth;
@@ -173,9 +183,11 @@ export class UI {
     this.noHandEl.classList.toggle('show', this._noHandTime > NO_HAND_HINT_AFTER);
 
     // 아래 버튼을 검지로 가리키고 기다리면 선택
+    // 그림 그리듯 지나가는 손가락은 무시하고, 버튼 위에 멈춰 있는 손가락만 센다.
     const hovered = new Set();
     for (const h of live) {
       if (h.pose !== 'point') continue;
+      if (Math.hypot(h.velocity.x, h.velocity.y) > h.size * 1.5) continue;
       const tip = h.lm[8];
       for (const [id, b] of this.buttons) {
         if (b.classList.contains('active')) continue;

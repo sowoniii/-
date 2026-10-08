@@ -87,7 +87,40 @@ async function runScenario(browser, base, id) {
     /** 가짜 손/얼굴/마이크 설정 */
     sim: (s) => page.evaluate((s) => window.handplay.sim.set(s), s),
     wait: (ms) => page.waitForTimeout(ms),
-    /** 손을 from→to 로 여러 프레임에 걸쳐 움직인다. hand 는 sim hand 객체(위치 제외), others 는 함께 둘 다른 손들 */
+    /** 화면이 n 프레임 더 그려질 때까지 기다린다 (느린 헤드리스 브라우저에서도 믿을 수 있는 대기) */
+    frames: (n = 1) =>
+      page.evaluate(
+        (n) =>
+          new Promise((ok) => {
+            const end = window.handplay.app.frameCount + n;
+            const tick = () => (window.handplay.app.frameCount >= end ? ok() : requestAnimationFrame(tick));
+            requestAnimationFrame(tick);
+          }),
+        n,
+      ),
+    /** 놀이 시간(app.clock, frame.dt 의 합)으로 sec 초 기다린다 */
+    clockWait: (sec) =>
+      page.evaluate(
+        (sec) =>
+          new Promise((ok) => {
+            const end = window.handplay.app.clock + sec;
+            const tick = () => (window.handplay.app.clock >= end ? ok() : requestAnimationFrame(tick));
+            requestAnimationFrame(tick);
+          }),
+        sec,
+      ),
+    /** state() 가 조건을 만족할 때까지 기다린다. 만족하면 그 state, 시간 초과면 null */
+    async until(pred, timeoutMs = 15000) {
+      const end = Date.now() + timeoutMs;
+      while (Date.now() < end) {
+        const st = await page.evaluate(() => window.handplay.app.mode.state?.() ?? null);
+        if (st && pred(st)) return st;
+        await page.waitForTimeout(60);
+      }
+      return null;
+    },
+    /** 손을 from→to 로 여러 프레임에 걸쳐 움직인다. hand 는 sim hand 객체(위치 제외), others 는 함께 둘 다른 손들.
+     *  한 걸음마다 최소 한 프레임이 그려지므로 느린 환경에서도 손이 순간이동하지 않는다. */
     async move(hand, from, to, ms = 600, others = [], index = 0) {
       const steps = Math.max(2, Math.round(ms / 33));
       for (let i = 0; i <= steps; i++) {
@@ -96,7 +129,17 @@ async function runScenario(browser, base, id) {
         const hands = [...others];
         hands.splice(index, 0, h);
         await page.evaluate((hs) => window.handplay.sim.set({ hands: hs }), hands);
-        await page.waitForTimeout(33);
+        await Promise.all([t.frames(1), page.waitForTimeout(33)]);
+      }
+    },
+    /** 여러 손을 동시에 움직인다. paths: [{hand, from, to}] */
+    async moveMany(paths, ms = 600) {
+      const steps = Math.max(2, Math.round(ms / 33));
+      for (let i = 0; i <= steps; i++) {
+        const k = i / steps;
+        const hands = paths.map(({ hand, from, to }) => ({ ...hand, x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k }));
+        await page.evaluate((hs) => window.handplay.sim.set({ hands: hs }), hands);
+        await Promise.all([t.frames(1), page.waitForTimeout(33)]);
       }
     },
     /** 모드 인스턴스의 state() 결과 */

@@ -7,7 +7,7 @@
 //   4) 얼굴마다 자기 동물을 가진다 (얼굴 id). 잠깐 놓쳤다가 근처에 다시 나타나면 귀를 돌려준다.
 //   5) 브이 하나 = 변신 한 번: 별이 날아가는 중에 한 브이는 끝나자마자 이어서, 두 손으로 함께 한 브이는 한 번만.
 //      얼굴이 안 보이는 아이(옆을 봄, 손이 얼굴을 가림, 화면 끝)의 브이는 다른 아이에게 주지 않고 잠깐 기다린다.
-//   6) 귀 자리는 실제 사람 얼굴 비율(HEAD.camera)로, 연습 모드에서는 만화 얼굴 비율(HEAD.sim)로 잡는다.
+//   6) 귀 자리는 실제 사람 얼굴 비율(HEAD.camera)로 잡는다 (연습 모드 만화 얼굴도 같은 비율로 그려진다).
 
 import { ANIMALS, nextAnimal, firstAnimal, earReach } from './ears/animals.js';
 import { HeadMotion, EarSpring, PopSpring, dirOf } from './ears/physics.js';
@@ -56,8 +56,8 @@ export default {
     let lastChange = -1;
     let celebrateAt = -1;
     const seen = new Set();
-    /** 머리 모양: 실제 카메라 얼굴 / 연습 모드 만화 얼굴 */
-    const profile = () => (app.isSim ? HEAD.sim : HEAD.camera);
+    /** 머리 모양 (실제 얼굴 비율) */
+    const profile = () => HEAD.camera;
 
     function newState(face) {
       return {

@@ -226,24 +226,36 @@ function drawCartoonFace(g, lm, blend) {
   const cy = (top.y + chin.y) / 2;
   const hgt = Math.hypot(top.x - chin.x, top.y - chin.y);
   const roll = Math.atan2(top.y - chin.y, top.x - chin.x) + Math.PI / 2;
+  const yawShift = (lm[FACE.NOSE_TIP].x - cx) * Math.cos(roll) + (lm[FACE.NOSE_TIP].y - cy) * Math.sin(roll);
   g.save();
   g.translate(cx, cy);
   g.rotate(roll);
-  // 머리카락
+  // 머리카락: 실제 사람 비율 (눈 사이가 중심, 정수리는 이마 위로 얼굴 높이의 약 0.4, 옆은 얼굴보다 조금 넓게)
   g.fillStyle = '#4a2f23';
   g.beginPath();
-  g.ellipse(0, -hgt * 0.12, hgt * 0.5, hgt * 0.5, 0, 0, Math.PI * 2);
+  const hx = -yawShift * 0.6;
+  const hy = -hgt * 0.12;
+  for (let i = 0; i <= 48; i++) {
+    const a = (i / 48) * Math.PI * 2;
+    const s = Math.sin(a);
+    const c = Math.cos(a);
+    const e = 2 / 2.6;
+    const px = hx + hgt * 0.53 * Math.sign(s) * Math.pow(Math.abs(s), e);
+    const py = hy - (c > 0 ? hgt * 0.8 : hgt * 0.32) * Math.sign(c) * Math.pow(Math.abs(c), e);
+    if (i === 0) g.moveTo(px, py);
+    else g.lineTo(px, py);
+  }
   g.fill();
   // 얼굴
   g.fillStyle = '#ffd9b8';
   g.beginPath();
-  g.ellipse(0, hgt * 0.02, hgt * 0.42, hgt * 0.5, 0, 0, Math.PI * 2);
+  g.ellipse(yawShift * 0.25, hgt * 0.02, hgt * 0.42 * (1 - Math.abs(yawShift) / hgt), hgt * 0.5, 0, 0, Math.PI * 2);
   g.fill();
   // 눈
   g.fillStyle = '#2b2b2b';
   for (const sx of [-1, 1]) {
     g.beginPath();
-    g.ellipse(sx * hgt * 0.2, -hgt * 0.12, hgt * 0.045, hgt * 0.06, 0, 0, Math.PI * 2);
+    g.ellipse(sx * hgt * 0.2 + yawShift * 0.5, -hgt * 0.12, hgt * 0.045, hgt * 0.06, 0, 0, Math.PI * 2);
     g.fill();
   }
   // 볼

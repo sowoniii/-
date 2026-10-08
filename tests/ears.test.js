@@ -174,14 +174,18 @@ test('earAnchors: 강아지 귀는 머리 옆에서 볼 옆으로 축 늘어진�
   }
 });
 
-test('earAnchors: 연습 모드 만화 얼굴은 그 머리카락 원(눈 사이 중심, 반지름 = 얼굴 높이 0.5)에 붙는다', () => {
+test('earAnchors: 연습 모드 만화 머리(core/sim.js, 실제 비율)의 머리카락 윤곽 바로 안쪽에 붙는다', () => {
+  // sim.js 만화 머리카락: 눈 사이 중심, 옆 반폭 0.53h, 위 0.8h, 아래 0.32h, 둥글기 2.6 (h = 이마~턱)
   const f = makeFace({ x: 600, y: 400, size: 300 });
-  const h = headTarget(f, HEAD.sim);
+  const h = headTarget(f);
+  const H = 300;
   for (const A of ANIMALS) {
-    const [l, r] = earAnchors(h, A, [{}, {}], HEAD.sim);
+    const [l, r] = earAnchors(h, A, [{}, {}]);
     assert.ok(Math.abs(l.x - 600 + (r.x - 600)) < 1, `${A.id} 좌우 대칭`);
-    const d = Math.hypot(r.x - h.x, r.y - h.y);
-    assert.ok(d > 150 - 0.08 * h.size && d < 150, `${A.id} 머리카락 원 바로 안쪽 ${d}`);
+    const lat = Math.abs(r.x - h.x) / (0.53 * H);
+    const upv = (h.y - r.y) / ((h.y - r.y > 0 ? 0.8 : 0.32) * H);
+    const rad = Math.pow(lat, 2.6) + Math.pow(Math.abs(upv), 2.6);
+    assert.ok(rad < 1 && rad > 0.6, `${A.id} 머리카락 윤곽 바로 안쪽 (${rad.toFixed(2)})`);
   }
 });
 

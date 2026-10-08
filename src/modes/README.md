@@ -40,11 +40,13 @@ export default {
 
 | 필드 | 설명 |
 |---|---|
-| `t`, `dt` | 초 단위 시각, 지난 프레임 이후 시간(최대 0.05) |
+| `t`, `dt` | 초 단위 실제 시각, 지난 프레임 이후 시간(최대 0.05 — 느린 기기에서는 놀이 시간이 천천히 간다) |
+| `realDt` | 지난 프레임 이후 실제 시간(최대 0.25). 손 위치로 속도를 잴 때는 `t`/`realDt` 기준이 맞다 |
+| `frame` | 프레임 번호 (`app.frameCount`) |
 | `width`, `height` | 화면 크기 |
 | `hands` | `Hand[]` (아래) — 여러 아이의 손이 동시에 들어올 수 있다 (기본 최대 4개) |
 | `faces` | `Face[]` — `needs.face` 일 때만 채워진다 |
-| `mic` | `{ enabled, level 0..1, blowing, strength 0..1 }` 마이크 입김 감지 |
+| `mic` | `{ enabled, level 0..1, blowing, strength 0..1, candidate, flatness }` 마이크 입김 감지. 앱이 잡음 같은 효과음(`pop`, `whoosh`, `noise`, noise loop)을 내는 동안은 입김으로 치지 않는다 |
 
 ### Hand (`src/core/handtracker.js`)
 
@@ -59,22 +61,27 @@ export default {
 - `started` / `ended`: 이번 프레임에 시작된/끝난 pose 이름 (한 프레임만 값이 있고 나머지는 null)
 - `poseTime` 현재 pose 유지 시간, `prevPose`
 - `pinchDist` (엄지-검지 끝 거리 / size), `pinchPoint` (두 끝의 중간점)
-- `velocity` 손바닥 속도 px/s, `age` 추적된 시간
+- `velocity` 손바닥 속도 px/s (잠깐 놓쳤다 돌아와도 튀지 않게 실제 경과 시간으로 잰다), `age` 추적된 시간
+- `frames` 실제로 검출된 횟수. 막 나타난 손은 몇 프레임 동안 pose 가 'other' 이므로, 새 손을 믿기 전에 3~5 이상인지 볼 것
 
 ### Face (`src/core/facetracker.js`)
 
 - `headTop` 정수리 추정 위치, `forehead`, `chin`, `nose`, `mouth`, `leftEye`, `rightEye`, `center`
 - `roll` 기울기(라디안, 화면 기준 시계방향 +), `up` (턱→이마 단위벡터), `yaw` -1..1
-- `width`, `height` 얼굴 크기 px, `mouthOpen` 0..1, `blow` 입김 부는 입 모양 0..1, `blend` 블렌드셰이프 점수
+- `size` 안정된 얼굴 크기 px (양쪽 볼 사이 3D 거리 — 말하거나 고개를 돌려도 거의 그대로). 크기 기준은 이것을 쓸 것
+- `width`, `height` 화면에 보이는 얼굴 너비/높이 px (`height` 는 입을 벌리면 커진다)
+- `mouthOpen` 0..1, `blow` 입김 부는 입 모양 0..1, `blend` 블렌드셰이프 점수
 - `key[번호]` 주요 랜드마크 (번호는 `FACE` 상수, `src/core/synth.js`), `lm` 478개 원본
 
 ## app (create 에 넘어오는 것)
 
-- `app.width`, `app.height` 화면 크기
+- `app.width`, `app.height` 화면 크기, `app.dpr` 기기 픽셀 비율 (캐시 그림 해상도 정할 때)
+- `app.clock` 놀이 시간(frame.dt 의 합), `app.frameCount`
 - `app.sound` 효과음 (`src/core/sound.js`): `pop(pitch)`, `sparkle()`, `boing(pitch)`, `pip(pitch)`, `whoosh()`,
   `chime()`, `squeak(pitch)`, `tone({...})`, `noise({...})`, 이어지는 소리 `loop(id, {type, freq, gain})` / `stopLoop(id)`.
   놀이가 바뀌면 엔진이 모든 loop 를 끈다. 소리를 너무 자주 내지 않도록 놀이에서 간격을 조절할 것.
-- `app.ui.hint(text|null)` 위쪽 안내 문구 바꾸기 (null = 기본 문구), `app.ui.toast(text)` 화면 가운데 큰 글씨
+- `app.ui.hint(text|null)` 위쪽 안내 문구 바꾸기 (null = 기본 문구),
+  `app.ui.toast(text, ms?, {x, y} | {position: 'top'|'bottom'|'center'})` 큰 글씨 (기본은 화면 가운데 — 얼굴을 가릴 수 있으니 위치를 고를 것)
 - `app.getSource()` 현재 영상 (video 또는 연습용 canvas), `app.drawSource(ctx, w, h)` 화면과 똑같이 보이는 영상을
   임의 크기 2D 캔버스에 그린다 (작게 그려서 늘리면 흐림 효과)
 - `app.viewport` 좌표 변환 (`toTexture(x, y)`), `app.isSim` 연습 모드 여부
@@ -95,8 +102,11 @@ export default {
 ## 연습 모드와 자동 테스트
 
 - `?sim` 으로 열면 카메라 없이 가짜 손/얼굴이 나온다 (`src/core/sim.js`, 조작법은 파일 위 주석).
-- 테스트에서는 `window.handplay.sim.set({ hands: [{x, y, size, angle, pose, side, visible}], faces: [{x, y, size, roll, blow}], mic: {blowing, strength} })`.
+- 테스트에서는 `window.handplay.sim.set({ hands: [{x, y, size, angle, pose, side, visible}], faces: [{x, y, size, roll, yaw, blow, mouthOpen}], mic: {blowing, strength, level, enabled} })`.
+- 연습 모드 만화 얼굴은 실제 사람 비율(정수리 = 이마 위로 볼 사이 거리의 약 0.4배)로 그려진다.
 - `tests/e2e/scenarios/<id>.mjs` 시나리오를 만들면 `node tests/e2e/smoke.mjs <id>` 가 실행해 준다.
+  헤드리스 브라우저는 몇 fps 밖에 안 나올 수 있으므로 고정 시간 대기 대신 `t.frames(n)`, `t.clockWait(sec)`,
+  `t.until(state => 조건, ms)` 를 쓰고, 손은 `t.move` / `t.moveMany` 로 한 프레임씩 움직인다.
   스크린샷은 `test-results/<id>-*.png`. 콘솔 오류가 하나라도 있으면 실패.
 - 순수 로직은 `tests/<id>.test.js` (node:test) 로 단위 테스트한다. `npm test` 로 전부 실행.
 

@@ -25,7 +25,7 @@ const KEY_IDS = [
  * @property {Object<number, Point>} key  부드럽게 만든 주요 점 (FACE 상수 번호로 접근)
  * @property {Point} center     얼굴 중심 (눈과 입 사이)
  * @property {Point} forehead   이마 위쪽 (헤어라인 근처)
- * @property {Point} headTop    추정한 정수리 위치 (귀 장식을 붙이기 좋은 곳)
+ * @property {Point} headTop    추정한 정수리 위치 (이마 위로 0.41×size, 턱 움직임과 무관)
  * @property {Point} chin
  * @property {Point} nose
  * @property {Point} mouth      입 중심
@@ -35,7 +35,8 @@ const KEY_IDS = [
  * @property {number} yaw       좌우로 돌린 정도 대략 -1..1
  * @property {{x:number,y:number}} up  턱→이마 방향 단위 벡터
  * @property {number} width     얼굴 너비 px (양쪽 볼 사이)
- * @property {number} height    얼굴 높이 px (이마~턱)
+ * @property {number} height    얼굴 높이 px (이마~턱, 입을 벌리면 커진다)
+ * @property {number} size      안정된 얼굴 크기 px = 양쪽 볼 사이 3D 거리 (말하거나 고개를 돌려도 거의 그대로). 크기 기준으로 쓰기 좋다.
  * @property {number} mouthOpen 0..1
  * @property {Object<string, number>} blend  블렌드셰이프 점수 (mouthPucker, jawOpen, cheekPuff ...)
  * @property {number} blow      입김 부는 입 모양 정도 0..1 (오므린 입/볼 부풀림)
@@ -136,7 +137,11 @@ export class FaceTracker {
     f.yaw = width > 1 ? Math.max(-1, Math.min(1, ((f.nose.x - cheekMid.x) / width) * 2.5)) : 0;
     f.height = height;
     f.width = width;
-    f.headTop = { x: forehead.x + up.x * height * 0.22, y: forehead.y + up.y * height * 0.22 };
+    // 실제 얼굴로 재 보면 랜드마크 10 에서 정수리까지는 볼 사이 거리의 약 0.41 배 (머리카락이 없을 때)
+    const cheek3 = dist3(key[FACE.RIGHT_CHEEK], key[FACE.LEFT_CHEEK]);
+    const size = Math.max(Math.min(Math.max(cheek3, width), width / 0.55), height * 0.62, 1);
+    f.size = size;
+    f.headTop = { x: forehead.x + up.x * size * 0.41, y: forehead.y + up.y * size * 0.41 };
     f.mouthOpen = mouthOpen;
     f.blend = blend;
     f.blow = blow;

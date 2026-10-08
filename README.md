@@ -85,8 +85,12 @@ tests/                       단위 테스트 (npm test), 브라우저 자동 �
 ```
 
 ```bash
-npm test             # 단위 테스트 (Node 내장 테스트)
+npm test             # 단위 테스트 (Node 내장 테스트) — 실제 사진에서 뽑은 손·얼굴 랜드마크 판별 포함
 npm run e2e          # Playwright + Chromium 으로 모든 놀이를 연습 모드에서 자동 점검, 스크린샷은 test-results/
+npm run e2e:real     # 실제 손·얼굴 사진을 가짜 카메라로 넣어 카메라→인식→놀이 전체 경로 점검 (ffmpeg, Pillow 필요)
+npm run fixtures     # tests/fixtures/real-landmarks.json 다시 만들기
 ```
+
+손 모양 판별은 MediaPipe 공식 테스트 사진(브이, 가리키기, 주먹, 엄지 척, 펼친 손)에서 뽑은 실제 랜드마크로도 검증합니다.
 
 `npm run e2e` 는 Playwright 가 필요합니다 (`npm i -D playwright && npx playwright install chromium`).

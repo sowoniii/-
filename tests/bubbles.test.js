@@ -820,7 +820,8 @@ test('손 속도는 직접 잰다: 잠깐 놓쳤다 다시 찾아도 튀지 않�
       waveMax = Math.max(waveMax, r.world.wave);
     }
   }
-  assert.ok(trkMax > 1000, `추적기 속도 ${trkMax}`);
+  // (예전 추적기는 여기서 1000px/s 넘게 튀었다. 지금은 추적기도 실제 경과 시간으로 잰다)
+  assert.ok(trkMax < 450 * 1.5, `추적기 속도 ${trkMax}`);
   assert.ok(mineMax < 450 * 1.5, `직접 잰 속도 ${mineMax}`);
   assert.ok(waveMax < 0.9, `흔들기 정도 ${waveMax}`);
 

@@ -176,17 +176,25 @@ const FACE_POINTS = {
  * @param {number} o.y 얼굴 중심 y
  * @param {number} [o.size=260] 이마~턱 길이 (px)
  * @param {number} [o.roll=0] 기울기 (라디안, 양수면 시계 방향)
+ * @param {number} [o.yaw=0] 좌우로 고개 돌림 (라디안, 양수면 코가 화면 오른쪽으로)
  * @param {number} [o.mouthOpen=0] 0..1
  */
-export function synthFace({ x, y, size = 260, roll = 0, mouthOpen = 0 }) {
+export function synthFace({ x, y, size = 260, roll = 0, yaw = 0, mouthOpen = 0 }) {
   const c = Math.cos(roll);
   const s = Math.sin(roll);
+  const cy = Math.cos(yaw);
+  const sy = Math.sin(yaw);
   const out = new Array(478);
-  const place = (lx, ly, lz) => ({
-    x: x + size * (lx * c - ly * s),
-    y: y + size * (lx * s + ly * c),
-    z: lz * size,
-  });
+  const place = (lx0, ly, lz0) => {
+    // 세로축 둘레로 돌린 뒤(고개 돌림) 화면에서 기울인다
+    const lx = lx0 * cy - lz0 * sy;
+    const lz = lx0 * sy + lz0 * cy;
+    return {
+      x: x + size * (lx * c - ly * s),
+      y: y + size * (lx * s + ly * c),
+      z: lz * size,
+    };
+  };
   for (let i = 0; i < 478; i++) {
     const key = FACE_POINTS[i];
     if (key) {
