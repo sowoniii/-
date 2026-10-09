@@ -516,7 +516,8 @@ export default {
       for (let i = fx.rings.length - 1; i >= 0; i--) {
         const r = fx.rings[i];
         const k = (now - r.t) / r.life;
-        if (k >= 1) {
+        // 카메라 화면만 모드: 동그라미 표시는 그리지 않는다 (반짝이 입자만)
+        if (k >= 1 || app.clean) {
           fx.rings.splice(i, 1);
           continue;
         }

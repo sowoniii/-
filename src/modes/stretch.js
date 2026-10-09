@@ -836,18 +836,20 @@ export default {
         ctx.stroke();
       }
       if (st.rubber.phase === 'held') {
-        // 집은 곳 반짝이
-        const e = st.end;
-        const pulse = 0.5 + 0.5 * Math.sin(time * 10);
-        ctx.strokeStyle = `rgba(255,255,255,${0.55 + 0.3 * pulse})`;
-        ctx.lineWidth = Math.max(2, size * 0.022);
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, size * (0.2 + 0.03 * pulse), 0, TAU);
-        ctx.stroke();
-        for (let i = 0; i < 3; i++) {
-          const ang = time * 4 + (i * TAU) / 3;
-          const R = size * 0.27;
-          drawStar(ctx, e.x + Math.cos(ang) * R, e.y + Math.sin(ang) * R, size * 0.045, ang, i === 0 ? '#fff59d' : '#ffffff');
+        // 집은 곳 표시 고리 (카메라 화면만 모드에서는 그리지 않는다)
+        if (!app.clean) {
+          const e = st.end;
+          const pulse = 0.5 + 0.5 * Math.sin(time * 10);
+          ctx.strokeStyle = `rgba(255,255,255,${0.55 + 0.3 * pulse})`;
+          ctx.lineWidth = Math.max(2, size * 0.022);
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, size * (0.2 + 0.03 * pulse), 0, TAU);
+          ctx.stroke();
+          for (let i = 0; i < 3; i++) {
+            const ang = time * 4 + (i * TAU) / 3;
+            const R = size * 0.27;
+            drawStar(ctx, e.x + Math.cos(ang) * R, e.y + Math.sin(ang) * R, size * 0.045, ang, i === 0 ? '#fff59d' : '#ffffff');
+          }
         }
         if (st.tension > 0.05) {
           // 너무 늘이면 '부들부들' 표시
