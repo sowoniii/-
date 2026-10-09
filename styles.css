@@ -262,6 +262,18 @@ body.sim.playing .sim-help {
 body:not(.playing) #hud {
   display: none;
 }
+/* 카메라 화면만: 메뉴·버튼·안내·알림·로딩 표시를 모두 숨긴다 (문제가 생겼을 때의 오류 안내만 남긴다) */
+body.clean #hud,
+body.clean #start,
+body.clean #status {
+  display: none !important;
+}
+body.clean {
+  cursor: none;
+}
+body.clean #error {
+  cursor: auto;
+}
 /* 준비 중에는 놀이 버튼이 아직 아무 일도 하지 않으므로 숨긴다 */
 body.loading .modebar,
 body.loading #btn-home {

@@ -634,7 +634,8 @@ export default {
         if (!field.empty) drawFog(ctx);
         drawDrips(ctx);
         drawPuffs(ctx);
-        drawCursors(ctx);
+        // 카메라 화면만 모드에서는 손가락 끝 안내 고리를 그리지 않는다 (그린 선은 바로 보인다)
+        if (!app.clean) drawCursors(ctx);
         frameMs += performance.now() - t0;
         msAvg += (frameMs - msAvg) * 0.05;
       },

@@ -481,7 +481,8 @@ export default {
       for (const i of order) drawEar(ctx, A, st.anchors[i], S, st.springs[i].theta, scale, stretch);
       if (st.alive || fadeAlpha > 0) drawExtras(ctx, A, st.face, st.head.ang, S, Math.min(scale, 1.08), now);
       ctx.restore();
-      drawTag(ctx, st, A);
+      // 카메라 화면만 모드: 귀·얼굴 장식·반짝임만, 이름표 글자는 그리지 않는다
+      if (!app.clean) drawTag(ctx, st, A);
     }
 
     /** 이번 프레임에 그린 이름표 자리 (서로 겹치지 않게) */

@@ -29,6 +29,8 @@ export const config = {
   muted: params.has('mute'),
   autostart: params.has('autostart') || params.has('kiosk'),
   kiosk: params.has('kiosk'),
+  // 기본은 '카메라 화면만': 시작 화면·버튼·안내 글자 없이 바로 카메라로 시작한다. ?ui 를 붙이면 예전 화면(메뉴, 버튼, 안내).
+  ui: params.has('ui'),
 };
 
 export class App {
@@ -76,8 +78,21 @@ export class App {
     window.addEventListener('keydown', (e) => this._onKey(e));
     // 소리는 사용자가 한 번 누른 뒤에야 켤 수 있다.
     window.addEventListener('pointerdown', () => this.sound.unlock(), { passive: true });
+    // 키보드를 누른 것도 '사용자 동작'이라 소리를 켤 수 있다 (화면에 버튼이 없을 때 직원이 쓰는 길)
+    window.addEventListener('keydown', () => this.sound.unlock());
     this.frame = this.frame.bind(this);
-    if (config.autostart || config.sim) this.start({ sim: config.sim, modeId: config.startMode });
+    this.setClean(!config.ui);
+    if (this.clean || config.autostart || config.sim) this.start({ sim: config.sim, modeId: config.startMode });
+  }
+
+  /**
+   * 카메라 화면만 보여 줄지(true) 메뉴·버튼·안내를 함께 보여 줄지(false).
+   * 놀이들은 그릴 때마다 app.clean 을 보고 글자·안내 표시를 생략한다.
+   */
+  setClean(on) {
+    this.clean = on;
+    document.body.classList.toggle('clean', on);
+    if (on) this.ui.showStart(false);
   }
 
   // ------------------------------------------------------------------ 모드가 쓰는 도구
@@ -292,8 +307,8 @@ export class App {
   }
 
   showMenu() {
-    // 아직 준비 중이면(카메라 허락 창, 모델 내려받는 중) 메뉴로 돌아가지 않는다
-    if (!this.started) return;
+    // 아직 준비 중이면(카메라 허락 창, 모델 내려받는 중) 메뉴로 돌아가지 않는다. 카메라 화면만 모드에는 메뉴가 없다.
+    if (!this.started || this.clean) return;
     this.sound.stopAllLoops();
     this.ui.showStart(true);
   }
@@ -407,10 +422,20 @@ export class App {
     this.mode?.resize?.(this.width, this.height);
   }
 
+  /** 다음/이전 놀이 (step = 1 / -1) */
+  cycleMode(step) {
+    const i = MODES.findIndex((m) => m.id === this.modeDef?.id);
+    this.switchMode(MODES[(i + step + MODES.length) % MODES.length].id);
+  }
+
   _onKey(e) {
     if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
     const n = parseInt(e.key, 10);
     if (n >= 1 && n <= MODES.length && !e.shiftKey) this.switchMode(MODES[n - 1].id);
+    // 화살표·PageUp/PageDown: 발표용 리모컨(클리커)으로도 놀이를 넘길 수 있다
+    else if (e.code === 'ArrowRight' || e.code === 'PageDown') this.cycleMode(1);
+    else if (e.code === 'ArrowLeft' || e.code === 'PageUp') this.cycleMode(-1);
+    else if (e.code === 'KeyU') this.setClean(!this.clean);
     else if (e.code === 'KeyD') this.debug = !this.debug;
     else if (e.code === 'KeyM') {
       this.sound.setMuted(!this.sound.muted);

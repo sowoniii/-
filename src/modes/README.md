@@ -75,6 +75,10 @@ export default {
 
 ## app (create 에 넘어오는 것)
 
+- `app.clean` 이 true 이면 **카메라 화면만** 보여 주는 중이다 (기본값. `?ui` 로 열면 false).
+  이때는 글자·점수·이름표·안내 표시(목표 고리, 시범 손, 손끝 커서, 잡기 고리 등)를 그리지 말고 놀이 효과
+  (비눗방울, 김, 귀, 늘어난 손가락, 젤리 화면, 터지는 입자·반짝임)만 그린다. 그릴 때마다 확인할 것 (`U` 키로 바뀔 수 있다).
+  `app.ui.hint/toast` 는 화면에 안 보일 뿐이니 그대로 불러도 된다. e2e 는 이 모드에서 캔버스에 글자를 그리면 실패한다.
 - `app.width`, `app.height` 화면 크기, `app.dpr` 기기 픽셀 비율 (캐시 그림 해상도 정할 때)
 - `app.clock` 놀이 시간(frame.dt 의 합), `app.frameCount`
 - `app.sound` 효과음 (`src/core/sound.js`): `pop(pitch)`, `sparkle()`, `boing(pitch)`, `pip(pitch)`, `whoosh()`,

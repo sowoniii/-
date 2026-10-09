@@ -219,8 +219,10 @@ export default {
         for (const r of rings.values()) if (r.v > 0.01) art.drawWand(ctx, r.x, r.y, r.size * 0.36, clock, d, r.v);
         for (const b of world.bubbles) if (b.attached === null) art.drawBubble(ctx, b, clock, d);
         for (const b of world.bubbles) if (b.attached !== null) art.drawBubble(ctx, b, clock, d);
+        // 카메라 화면만 모드: 터지는 물방울·별은 그대로, 글자와 점수판은 그리지 않는다
+        fx.showWords = !app.clean;
         fx.draw(ctx);
-        drawCounter(ctx);
+        if (!app.clean) drawCounter(ctx);
       },
 
       resize(width, height) {

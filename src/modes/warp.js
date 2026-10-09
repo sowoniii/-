@@ -550,7 +550,7 @@ export default {
         const tx = fx.texts[i];
         const age = now - tx.t;
         const k = age / tx.life;
-        if (k >= 1) {
+        if (k >= 1 || app.clean) {
           fx.texts.splice(i, 1);
           continue;
         }
@@ -726,15 +726,18 @@ export default {
         keepOut.length = 0;
         for (const g of list) keepOut.push({ x: g.pos.x, y: g.pos.y, r2: (1.05 * g.size) ** 2 });
         for (const h of frame.hands) if (!isGrabbing(h.id)) keepOut.push({ x: h.palm.x, y: h.palm.y, r2: (1.1 * h.size) ** 2 });
-        drawStrain(ctx);
-        for (const g of list) drawBand(ctx, g);
-        for (const h of frame.hands) {
-          if (!isGrabbing(h.id) && !h.stale && h.age > 0.15) drawHover(ctx, h);
-        }
-        for (const g of list) {
-          let fade = g.orphan > 0 ? 0.45 * clamp(1 - g.orphan / GRAB.orphanGrace) + 0.15 : 1;
-          for (const h of frame.hands) if (h.id === g.handId && h.stale) fade = 0.45;
-          drawGrip(ctx, g, fade);
+        // 카메라 화면만 모드: 일그러지는 영상과 터지는 효과만 남기고, 표시선·잡기 고리·주먹 안내·글자는 그리지 않는다
+        if (!app.clean) {
+          drawStrain(ctx);
+          for (const g of list) drawBand(ctx, g);
+          for (const h of frame.hands) {
+            if (!isGrabbing(h.id) && !h.stale && h.age > 0.15) drawHover(ctx, h);
+          }
+          for (const g of list) {
+            let fade = g.orphan > 0 ? 0.45 * clamp(1 - g.orphan / GRAB.orphanGrace) + 0.15 : 1;
+            for (const h of frame.hands) if (h.id === g.handId && h.stale) fade = 0.45;
+            drawGrip(ctx, g, fade);
+          }
         }
         drawFx(ctx, frame.dt);
       },

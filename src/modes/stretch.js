@@ -1035,7 +1035,7 @@ export default {
         }
       }
       ctx.globalAlpha = 1;
-      for (const t of texts) {
+      for (const t of app.clean ? [] : texts) {
         const k = t.life / t.max;
         const pop = k < 0.15 ? 0.6 + 0.4 * (k / 0.15) + 0.25 * Math.sin((k / 0.15) * Math.PI) : 1;
         ctx.globalAlpha = 1 - smoothstep(0.7, 1, k);
@@ -1136,10 +1136,13 @@ export default {
         drawStretch(ctx, st, frame.width, frame.height);
         ctx.restore();
       }
-        for (const c of targets) drawTarget(ctx, c, c === aim);
-        if (ghost) drawGhost(ctx, ghost, frame.width, frame.height);
-        const labelC = aim || ghost?.c || (live.length >= 2 && !pullers.size ? targets.find((c) => c.primary) : null);
-        if (labelC) drawLabel(ctx, labelC, aim ? '꼬옥 집어요!' : '여기를 집어요!', frame.width, frame.height);
+        // 카메라 화면만 모드: 늘어난 손가락과 반짝임만 그리고, 안내(목표 고리·시범 손·글자)는 그리지 않는다
+        if (!app.clean) {
+          for (const c of targets) drawTarget(ctx, c, c === aim);
+          if (ghost) drawGhost(ctx, ghost, frame.width, frame.height);
+          const labelC = aim || ghost?.c || (live.length >= 2 && !pullers.size ? targets.find((c) => c.primary) : null);
+          if (labelC) drawLabel(ctx, labelC, aim ? '꼬옥 집어요!' : '여기를 집어요!', frame.width, frame.height);
+        }
         drawEffects(ctx);
       },
 

@@ -3,6 +3,9 @@
 //   node tests/e2e/smoke.mjs bubbles    특정 놀이만
 //   SKIP_CAMERA=1 node tests/e2e/smoke.mjs   실제 카메라/인식기 점검 생략
 //
+// 기본(카메라 화면만)으로 시나리오를 돌리고, 그동안 어떤 캔버스에도 글자(fillText/strokeText)가 그려지지 않았는지 확인한다.
+// 끝에 ?ui (메뉴·버튼·안내가 있는 화면)도 놀이마다 한 번씩 열어 본다.
+//
 // 각 놀이의 시나리오는 tests/e2e/scenarios/<놀이id>.mjs 에 있다:
 //   export default async function scenario(t) { await t.sim({hands:[...]}); await t.wait(500); t.assert(...); await t.shot('name'); }
 // 스크린샷은 test-results/ 에 저장된다.
@@ -72,9 +75,24 @@ function collectErrors(page) {
   return errors;
 }
 
+/** 카메라 화면만 모드에서 캔버스에 글자를 그리면 센다 (안내 글자·점수·이름표가 남아 있는지 잡아낸다) */
+function countCanvasText() {
+  window.__canvasText = [];
+  for (const proto of [CanvasRenderingContext2D.prototype, window.OffscreenCanvasRenderingContext2D?.prototype].filter(Boolean)) {
+    for (const name of ['fillText', 'strokeText']) {
+      const orig = proto[name];
+      proto[name] = function (text, ...rest) {
+        if (document.body?.classList.contains('clean') && window.__canvasText.length < 50) window.__canvasText.push(String(text));
+        return orig.call(this, text, ...rest);
+      };
+    }
+  }
+}
+
 async function runScenario(browser, base, id) {
   const page = await browser.newPage({ viewport: { width: W, height: H } });
   const errors = collectErrors(page);
+  await page.addInitScript(countCanvasText);
   await page.goto(`${base}/?sim&mode=${id}`);
   await page.waitForFunction(() => window.handplay?.app?.mode && window.handplay.sim, null, { timeout: 10000 });
   await page.waitForTimeout(300);
@@ -160,8 +178,37 @@ async function runScenario(browser, base, id) {
   } catch (e) {
     failures.push(`시나리오 오류: ${e.stack || e.message}`);
   }
+  const texts = await page.evaluate(() => window.__canvasText);
+  if (texts.length) failures.push(`카메라 화면만 모드에서 캔버스에 글자를 그림: ${JSON.stringify([...new Set(texts)].slice(0, 12))}`);
+  const visibleUi = await page.evaluate(() =>
+    ['hud', 'start', 'status'].filter((id) => {
+      const el = document.getElementById(id);
+      return el && getComputedStyle(el).display !== 'none' && !el.hidden;
+    }),
+  );
+  if (visibleUi.length) failures.push(`카메라 화면만 모드에서 UI 가 보임: ${visibleUi.join(', ')}`);
   await page.close();
   return { id, errors, failures };
+}
+
+/** ?ui: 메뉴·버튼·안내가 있는 예전 화면도 잘 열리는지 */
+async function uiCheck(browser, base, id) {
+  const page = await browser.newPage({ viewport: { width: W, height: H } });
+  const errors = collectErrors(page);
+  const failures = [];
+  await page.goto(`${base}/?sim&ui&mode=${id}`);
+  await page.waitForFunction(() => window.handplay?.app?.mode, null, { timeout: 10000 });
+  await page.evaluate(() => window.handplay.sim.set({ hands: [{ x: 640, y: 420, size: 150, pose: 'open' }] }));
+  await page.waitForTimeout(800);
+  const s = await page.evaluate(() => ({
+    hud: getComputedStyle(document.getElementById('hud')).display !== 'none',
+    bar: document.querySelectorAll('.mode-btn').length,
+    hint: document.getElementById('hint').textContent,
+  }));
+  if (!s.hud || s.bar !== 5 || !s.hint) failures.push(`?ui 화면이 이상함: ${JSON.stringify(s)}`);
+  await page.screenshot({ path: join(outDir, `${id}-ui.png`) });
+  await page.close();
+  return { id: `${id} (?ui)`, errors, failures };
 }
 
 async function cameraCheck(browser, base) {
@@ -198,6 +245,7 @@ async function main() {
   const ids = only && only !== 'camera' ? [only] : ['bubbles', 'frost', 'ears', 'stretch', 'warp'];
   const results = [];
   if (only !== 'camera') for (const id of ids) results.push(await runScenario(browser, base, id));
+  if (only !== 'camera') for (const id of ids) results.push(await uiCheck(browser, base, id));
   if ((!only || only === 'camera') && !process.env.SKIP_CAMERA) results.push(await cameraCheck(browser, base));
   await browser.close();
   server.close();

@@ -29,6 +29,8 @@ export class PopEffects {
     this.rings = [];
     this.drops = [];
     this.words = [];
+    /** false 면 '뽁!' 같은 글자는 그리지 않는다 (카메라 화면만 모드) */
+    this.showWords = true;
     this.stars = [];
     this._lastWord = -1;
     this._color = 0;
@@ -230,7 +232,7 @@ export class PopEffects {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
-    for (const o of this.words) {
+    for (const o of this.showWords ? this.words : []) {
       const p = o.t / o.dur;
       const s = popIn(p);
       ctx.globalAlpha = p < 0.7 ? 1 : 1 - (p - 0.7) / 0.3;
